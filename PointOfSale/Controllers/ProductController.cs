@@ -1,6 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using PointOfSale.Data;
+using PointOfSale.Dtos;
+using PointOfSale.Model;
+using PointOfSale.Repository;
 
 namespace PointOfSale.Controllers
 {
@@ -8,118 +13,98 @@ namespace PointOfSale.Controllers
     [ApiController]
     public class ProductController : ControllerBase
     {
-        private readonly IWebHostEnvironment _environment;   // to access wwwroot folder
-        public ProductController(IWebHostEnvironment environment)
+        private readonly ApplicationDbContext _context;
+
+        private readonly IMapper _mapper;
+        private readonly IProductRepository _productRepository;
+
+        public ProductController(ApplicationDbContext context, IMapper mapper, IProductRepository productRepository)
         {
-
-            _environment = environment;
-
+            _context = context;
+            _mapper = mapper;
+            _productRepository = productRepository;
         }
 
-        [Authorize(Policy = "CookiePolicy")]
+        //  [Authorize(Policy = "ViewProductPolicy")]
 
-        [HttpGet("GetByCookie")]
-        public IActionResult GetByCookie()
+       // [Authorize(Permissions.Products.View)]
+
+        [HttpGet]
+        public async Task<IActionResult> GetProducts()
         {
-            return Ok("you hit by cookie");
+            var std = await _productRepository.GetProductsAsync();
+
+            return Ok(_mapper.Map<List<ProductDto>>(std));
         }
 
-        //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        [Authorize(Policy = "JwtPolicy")]
-        [HttpGet("GetByJWT")]
+        // [Authorize(Policy = "ViewProductPolicy")]
 
-        public IActionResult GetByJWT()
+       // [Authorize(Permissions.Products.View)]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProduct(int id)
         {
-            return Ok("you hit by jwt");
-        }
-
-        [Authorize]
-        [HttpGet("GetByBoth")]
-
-        public IActionResult GetByBoth()
-        {
-            return Ok("you hit by both jwt and cookie");
-        }
-
-        [HttpPut("UploadImage")]
-        public async Task<IActionResult> UploadImage(IFormFile file, string productcode)
-        {
-           // APIResponse response = new APIResponse();
-            try
+            var cat = await _productRepository.GetProductAsync(id);
+            if (cat == null)
             {
-                string FilePath = GetFilePath(productcode);
+                return NotFound();
+            }
+            return Ok(_mapper.Map<ProductDto>(cat));
+        }
 
-                if(!System.IO.Directory.Exists(FilePath))
-                {
-                    System.IO.Directory.CreateDirectory(FilePath);
-                }
-                string imagePath = FilePath + "\\" + productcode + ".png";
+        // [Authorize(Policy = "CreateProductPolicy")]
 
-                if(System.IO.File.Exists(imagePath))
-                {
-                    System.IO.File.Delete(imagePath);
-                }
+       // [Authorize(Permissions.Products.Create)]
 
-                using(FileStream stream = System.IO.File.Create(imagePath))
+        [HttpPost]
+        public async Task<IActionResult> CreateProduct([FromBody] CreateProductDto createProductDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var cat = await _productRepository.AddProductAsync(_mapper.Map<Product>(createProductDto));
+
+
+            return CreatedAtAction("GetProduct", new { id = cat.Id }, _mapper.Map<CreateProductDto>(cat));
+        }
+
+        // [Authorize(Policy = "EditProductPolicy")]
+
+      //  [Authorize(Permissions.Products.Edit)]
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateProduct([FromRoute] int id, [FromBody] UpdateProductDto updateProductDto)
+        {
+            var updateCatExist = await _productRepository.GetProductAsync(id);
+            if (updateCatExist != null)
+            {
+                // update method
+                var orignalCat = _mapper.Map<Product>(updateProductDto);    // orignalStd b/c give to db so it is destination
+                var updatedCat = await _productRepository.UpdateProductAsync(id, orignalCat);
+
+                if (updatedCat != null)
                 {
-                    await file.CopyToAsync(stream);
-                    return Ok();
+                    return Ok(_mapper.Map<ProductDto>(updatedCat));     // here studentDto b/c return to user
                 }
             }
-            catch (Exception)
-            {
 
-                throw;
-            }
-            return Ok();
+            return NotFound();
         }
 
-        [HttpPut("UploadMultiImage")]
-        public async Task<IActionResult> UploadMultiImage(List<IFormFile> files, string productcode)
+        // [Authorize(Policy = "DeleteProductPolicy")]
+
+       // [Authorize(Permissions.Products.Delete)]
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteProduct(int id)
         {
-            // APIResponse response = new APIResponse();
-            try
+            var deletedCat = await _productRepository.DeleteProductAsync(id);
+            if (deletedCat == null)
             {
-                string FilePath = GetFilePath(productcode);
-
-                if (!System.IO.Directory.Exists(FilePath))
-                {
-                    System.IO.Directory.CreateDirectory(FilePath);
-                }
-
-                foreach (var file in files)
-                {
-                    string imagePath = FilePath + "\\" + file.FileName;
-
-                    if (System.IO.File.Exists(imagePath))
-                    {
-                        System.IO.File.Delete(imagePath);
-                    }
-
-                    using (FileStream stream = System.IO.File.Create(imagePath))
-                    {
-                        await file.CopyToAsync(stream);
-                        return Ok();
-                    }
-
-                }
-
-                
-                
+                return NotFound();
             }
-            catch (Exception)
-            {
-
-                throw;
-            }
-            return Ok();
-        }
-
-        [NonAction]
-
-        private string GetFilePath(string productcode)
-        {
-            return _environment.WebRootPath + "\\Upload\\product\\" + productcode;
+            return Ok(_mapper.Map<ProductDto>(deletedCat));
         }
     }
 }

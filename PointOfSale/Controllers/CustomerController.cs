@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using PointOfSale.Service;
 
 namespace PointOfSale.Controllers
 {
@@ -8,10 +7,8 @@ namespace PointOfSale.Controllers
     [ApiController]
     public class CustomerController : ControllerBase
     {
-        private readonly ICustomerService _customerService;
-        public CustomerController(ICustomerService customerService)
+        public CustomerController()
         {
-            _customerService = customerService;
         }
     }
 }

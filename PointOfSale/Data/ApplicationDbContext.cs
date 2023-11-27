@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using PointOfSale.Model;
 
 namespace PointOfSale.Data
 {
@@ -10,22 +11,26 @@ namespace PointOfSale.Data
 
         }
 
-        //public DbSet<Category> Categories { get; set; }
-        //public DbSet<Product> Products { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<SubCategory> SubCategories { get; set; }
 
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // Configure relationships
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Category)
+                .WithMany(c => c.Products)
+                .HasForeignKey(p => p.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade); // adjust the delete behavior as needed
 
-        //protected override void OnModelCreating(ModelBuilder modelBuilder)
-        //{
+            modelBuilder.Entity<SubCategory>()
+                .HasOne(sc => sc.Category)
+                .WithMany(c => c.SubCategories)
+                .HasForeignKey(sc => sc.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade); // adjust the delete behavior as needed
 
-        //    // Configure relationships
-        //    modelBuilder.Entity<Product>()
-        //        .HasOne(p => p.Category)
-        //        .WithMany(c => c.Products)
-        //        .HasForeignKey(p => p.CategoryId)
-        //        .OnDelete(DeleteBehavior.Cascade); // adjust the delete behavior as needed
-
-
-        //    base.OnModelCreating(modelBuilder);
-        //}
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }

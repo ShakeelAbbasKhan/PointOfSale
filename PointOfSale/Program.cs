@@ -1,10 +1,11 @@
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using PointOfSale.Container;
 using PointOfSale.Data;
 using PointOfSale.Helper;
-using PointOfSale.Service;
+using PointOfSale.PermissionRelated;
+using PointOfSale.Repository;
 using PointOfSale.Utilities;
 
 namespace PointOfSale
@@ -34,13 +35,28 @@ namespace PointOfSale
             builder.Services.ConfigureAuthentication(builder.Configuration);
             builder.Services.ConfigureAuthorization();
 
-            builder.Services.AddTransient<ICustomerService, CustomerService>();
+            // add repositories
+            builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+            builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
+            builder.Services.AddScoped<IProductRepository, ProductRepository>();
             builder.Services.AddScoped<JWTService>();
+
+            //for permission
+            builder.Services.AddAuthorization();
+            builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
+            builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+            builder.Services.AddScoped<IPermissionService, PermissionService>();
+
+            // configure autoMapper
+            builder.Services.AddAutoMapper(typeof(Program));
 
             var _jwtSetting = builder.Configuration.GetSection("JWTSettings");
             builder.Services.Configure<JWTSettings>(_jwtSetting);
 
-            builder.Services.AddControllers();
+            // builder.Services.AddControllers();
+            builder.Services.AddControllers().AddNewtonsoftJson(options =>
+           options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+           );
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
